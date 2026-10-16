@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Mesa de selección de postulantes</title>
+<style>
+/* ------------------------------------------------------------------
+   Tokens. Neutros fríos, un solo acento (cobalto) para la acción
+   primaria y la selección actual. Verde = cupo ocupado. Ámbar = regla
+   de las 15 h. Ningún otro color lleva significado.
+------------------------------------------------------------------ */
+:root{
+  --bg: oklch(0.966 0.006 250);
+  --surface: oklch(1 0 0);
+  --surface-2: oklch(0.982 0.004 250);
+  --line: oklch(0.90 0.008 255);
+  --line-strong: oklch(0.78 0.012 255);
+
+  --ink: oklch(0.24 0.03 265);
+  --ink-2: oklch(0.45 0.02 265);
+  --ink-3: oklch(0.52 0.02 265);
+
+  --accent: oklch(0.50 0.19 262);
+  --accent-hover: oklch(0.43 0.19 262);
+  --accent-soft: oklch(0.955 0.028 262);
+  --accent-ink: oklch(0.38 0.15 262);
+  --on-accent: #fff;
+  --focus: oklch(0.50 0.19 262);
+
+  --ok: oklch(0.43 0.11 155);
+  --ok-soft: oklch(0.965 0.035 155);
+  --ok-line: oklch(0.80 0.08 155);
+
+  --warn: oklch(0.44 0.10 65);
+  --warn-soft: oklch(0.965 0.055 88);
+  --warn-line: oklch(0.82 0.11 82);
+
+  --track: oklch(0.925 0.008 255);
+
+  --font: "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --tap: 40px;
+
+  --r-ctl: 8px;
+  --r-panel: 12px;
+  --shadow-dock: 0 10px 28px -8px oklch(0.2 0.05 265 / .45), 0 2px 6px oklch(0.2 0.05 265 / .25);
+
+  color-scheme: light;
+}
+@media (max-width: 640px){ :root{ --tap: 44px; } }
+
+*,*::before,*::after{ box-sizing: border-box; }
+[hidden]{ display: none !important; }
+
+html{
+  -webkit-text-size-adjust: 100%;
+  scroll-padding-bottom: 112px;      /* el aviso inferior nunca tapa el foco */
+}
+body{
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.5 var(--font);
+  -webkit-font-smoothing: antialiased;
+  caret-color: var(--accent);
+  overflow-wrap: anywhere;
+}
+::selection{ background: oklch(0.88 0.07 262); color: var(--ink); }
+button, input{ font: inherit; color: inherit; }
+button{ cursor: pointer; }
+h1,h2,h3,p,ul,dl,dd{ margin: 0; padding: 0; }
+ul{ list-style: none; }
+.num{ font-variant-numeric: tabular-nums; }
+.sr{
+  position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+.ico{ width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.ico.sm{ width: 16px; height: 16px; }
+
+/* Foco visible, siempre */
+:where(a, button, input, [tabindex]):focus-visible{
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.skip{
+  position: absolute; left: 12px; top: -64px; z-index: 50;
+  background: var(--ink); color: #fff; padding: 10px 14px; border-radius: var(--r-ctl);
+  text-decoration: none; font-weight: 600;
+}
+.skip:focus{ top: 12px; outline-color: #fff; }
+
+.wrap{ width: 100%; max-width: 1360px; margin-inline: auto; padding-inline: clamp(16px, 3vw, 32px); }
+
+/* ------------------------------------------------------------------
+   Botones
+------------------------------------------------------------------ */
+.btn{
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: var(--tap); padding: 0 16px;
+  border: 1px solid transparent; border-radius: var(--r-ctl);
+  font-weight: 600; line-height: 1.2; text-align: center;
+  transition: transform 150ms var(--ease-out), background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.btn:active{ transform: scale(0.97); }
+.btn.primary{ background: var(--accent); color: var(--on-accent); }
+.btn.secondary{ background: var(--surface); color: var(--ink); border-color: var(--line-strong); }
+.btn.sm{ min-height: 36px; padding: 0 12px; font-size: 13px; }
+@media (max-width: 640px){ .btn.sm{ min-height: 44px; } }
+.btn.block{ width: 100%; }
+.btn:disabled{ opacity: .5; cursor: not-allowed; }
+@media (hover: hover) and (pointer: fine){
+  .btn.primary:hover{ background: var(--accent-hover); }
+  .btn.secondary:hover{ background: var(--surface-2); border-color: var(--ink-3); }
+}
+
+.linkbtn{
+  background: none; border: 0; padding: 0; margin: 0; font-weight: 600; color: var(--accent-ink);
+  text-decoration: underline; text-decoration-color: oklch(0.5 0.12 262 / .4); text-underline-offset: 3px;
+  text-align: left; cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine){ .linkbtn:hover{ text-decoration-color: currentColor; } }
+
+/* ------------------------------------------------------------------
+   Cabecera: título + cupos
+------------------------------------------------------------------ */
+.top{ background: var(--surface); border-bottom: 1px solid var(--line); }
+.top-title{ padding-block: 24px 4px; }
+h1{ font-size: 24px; line-height: 1.2; font-weight: 700; letter-spacing: -0.015em; text-wrap: balance; }
+.sub{ margin-top: 4px; color: var(--ink-2); font-size: 14px; }
+
+.cupos{ padding-block: 18px 22px; }
+.cupos-head{ display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; margin-bottom: 12px; }
+.cupos-head h2{ font-size: 15px; font-weight: 650; }
+.counter{ font-size: 14px; color: var(--ink-2); }
+.counter b{ color: var(--ink); font-weight: 650; }
+
+.slots{ display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 680px){ .slots{ grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1040px){ .slots{ grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+.slot{
+  display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; column-gap: 12px; align-items: start;
+  padding: 12px 14px; border-radius: 10px;
+  border: 1.5px dashed var(--line-strong); background: transparent;
+  transition: background-color 700ms ease-out, border-color 300ms ease;
+}
+.slot[data-state="taken"]{ border: 1px solid var(--ok-line); background: var(--ok-soft); }
+.slot-ico{ grid-column: 1; margin-top: 1px; color: var(--ink-2); }
+.slot[data-state="taken"] .slot-ico{ color: var(--ok); }
+.slot-main{ grid-column: 2; min-width: 0; }
+.slot-role{ font-size: 14px; font-weight: 650; line-height: 1.3; }
+.slot-state{ display: flex; align-items: flex-start; gap: 7px; margin-top: 3px; font-size: 13px; color: var(--ink-2); line-height: 1.35; }
+.slot[data-state="taken"] .slot-state{ color: var(--ink); }
+.slot-state .st{ font-weight: 650; }
+.slot-state .dot{ flex: none; width: 9px; height: 9px; margin-top: 4px; border-radius: 50%; background: var(--ok); }
+.slot-state .dot.hollow{ background: transparent; border: 1.5px solid var(--ink-3); }
+.slot-pend{ display: flex; align-items: center; gap: 6px; margin-top: 5px; font-size: 12.5px; font-weight: 600; color: var(--warn); }
+.slot-act{ grid-column: 3; align-self: center; }
+
+/* Un cupo recién ocupado o liberado: contenido entra, halo se disipa */
+.slot[data-fresh]{ animation: slot-flash 1000ms linear; }
+.slot[data-fresh] .slot-main, .slot[data-fresh] .slot-act{ animation: slot-in 260ms var(--ease-out) both; }
+@keyframes slot-in{
+  from{ opacity: 0; transform: translateY(6px); filter: blur(2px); }
+  to{ opacity: 1; transform: none; filter: none; }
+}
+@keyframes slot-flash{
+  from{ box-shadow: 0 0 0 5px oklch(0.50 0.19 262 / .35); }
+  to{ box-shadow: 0 0 0 0 oklch(0.50 0.19 262 / 0); }
+}
+
+/* ------------------------------------------------------------------
+   Cuerpo: lista + ficha
+------------------------------------------------------------------ */
+.layout{ display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); padding-block: 22px 120px; align-items: start; }
+@media (min-width: 980px){
+  .layout{ grid-template-columns: minmax(0, 1fr) 400px; }
+  .ficha{ position: sticky; top: 16px; }
+}
+.panel{ background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-panel); overflow: clip; }
+
+/* Lista */
+.list-panel{ container: lista / inline-size; }
+.panel-head{ display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 16px; padding: 18px 16px 0; }
+.panel-head h2{ font-size: 17px; font-weight: 650; }
+.count{ font-size: 13px; color: var(--ink-2); }
+
+.tools{ display: grid; gap: 12px; padding: 14px 16px 16px; }
+.search label{ display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; }
+.field{ position: relative; display: flex; align-items: center; }
+.field .ico{ position: absolute; left: 12px; color: var(--ink-2); pointer-events: none; }
+.field input{
+  width: 100%; min-height: var(--tap); padding: 0 44px 0 40px;
+  background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-ctl);
+  font-size: 16px;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.field input::placeholder{ color: var(--ink-3); }
+.field input::-webkit-search-cancel-button{ display: none; }
+.field input:focus-visible{ outline: 3px solid var(--focus); outline-offset: 1px; border-color: var(--accent); border-radius: var(--r-ctl); }
+.clear{
+  position: absolute; right: 2px; top: 50%; translate: 0 -50%;
+  width: 40px; height: 40px; display: grid; place-items: center;
+  background: none; border: 0; border-radius: var(--r-ctl); color: var(--ink-2);
+}
+@media (hover: hover) and (pointer: fine){ .clear:hover{ background: var(--surface-2); color: var(--ink); } }
+
+.chips{ display: flex; flex-wrap: wrap; gap: 8px; }
+.chip{
+  display: inline-flex; align-items: center; gap: 7px; min-height: var(--tap); padding: 0 12px;
+  background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r-ctl);
+  font-weight: 500; font-size: 14px;
+  transition: transform 150ms var(--ease-out), background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.chip:active{ transform: scale(0.97); }
+.chip .n{ font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.chip[aria-pressed="true"]{ background: var(--ink); border-color: var(--ink); color: #fff; }
+.chip[aria-pressed="true"] .n{ color: oklch(0.88 0.01 265); }
+@media (hover: hover) and (pointer: fine){
+  .chip[aria-pressed="false"]:hover{ background: var(--surface-2); border-color: var(--ink-3); }
+}
+
+.colhead{ display: none; }
+.rows{ border-top: 1px solid var(--line); }
+.rows > li + li{ border-top: 1px solid var(--line); }
+
+.row{
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "who score" "role hours";
+  gap: 8px 14px; align-items: center;
+  width: 100%; padding: 14px 16px; text-align: left;
+  background: var(--surface); border: 0; border-radius: 0;
+  transition: background-color 120ms ease;
+}
+.row:focus-visible{ outline: 3px solid var(--focus); outline-offset: -4px; border-radius: 0; }
+.row[aria-current="true"]{ background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
+@media (hover: hover) and (pointer: fine){
+  .row[aria-current="false"]:hover{ background: var(--surface-2); }
+}
+.r-who{ grid-area: who; min-width: 0; }
+.r-name{ display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 15px; font-weight: 650; line-height: 1.3; }
+.r-sub{ display: block; margin-top: 2px; font-size: 13px; color: var(--ink-2); }
+.r-role{ grid-area: role; display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; color: var(--ink-2); }
+.r-hours{ grid-area: hours; display: inline-flex; align-items: center; justify-content: flex-end; gap: 5px; font-size: 13px; color: var(--ink-2); white-space: nowrap; }
+.r-hours.low{ color: var(--warn); font-weight: 650; }
+.r-score{ grid-area: score; font-size: 20px; font-weight: 700; line-height: 1; text-align: right; font-variant-numeric: tabular-nums; }
+
+.tag{
+  display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px 1px 6px;
+  border-radius: 999px; font-size: 12px; font-weight: 650; line-height: 1.5; white-space: nowrap;
+}
+.tag.ok{ background: var(--ok-soft); color: var(--ok); border: 1px solid var(--ok-line); }
+.tag.idle{ background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line-strong); }
+
+@container lista (min-width: 580px){
+  .colhead{
+    display: grid; grid-template-columns: minmax(0, 1fr) 196px 84px 52px; gap: 14px;
+    padding: 8px 16px; font-size: 12px; font-weight: 600; color: var(--ink-2);
+    background: var(--surface-2); border-top: 1px solid var(--line);
+  }
+  .colhead span:nth-child(3), .colhead span:nth-child(4){ text-align: right; }
+  .rows{ border-top: 1px solid var(--line); }
+  .row{ grid-template-columns: minmax(0, 1fr) 196px 84px 52px; grid-template-areas: "who role hours score"; gap: 14px; }
+}
+
+.empty{ padding: 36px 20px 40px; text-align: center; border-top: 1px solid var(--line); }
+.empty .ico{ width: 28px; height: 28px; color: var(--ink-3); }
+.empty h3{ margin-top: 8px; font-size: 15px; font-weight: 650; }
+.empty p{ margin: 4px auto 16px; max-width: 38ch; color: var(--ink-2); font-size: 14px; }
+
+.legend{ display: flex; gap: 8px; align-items: flex-start; padding: 12px 16px 14px; font-size: 13px; color: var(--ink-2); border-top: 1px solid var(--line); background: var(--surface-2); }
+.legend .ico{ color: var(--warn); margin-top: 1px; }
+
+/* ------------------------------------------------------------------
+   Ficha
+------------------------------------------------------------------ */
+.ficha{ padding: 20px; scroll-margin-top: 12px; }
+.back{ display: none; margin: -6px 0 14px -6px; padding: 0 10px 0 8px; min-height: 40px; background: none; border: 0; border-radius: var(--r-ctl); color: var(--accent-ink); font-weight: 600; align-items: center; gap: 6px; }
+@media (max-width: 979px){ .back{ display: inline-flex; } }
+
+.f-head{ display: flex; gap: 14px; align-items: flex-start; }
+.avatar{
+  flex: none; width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent-ink); font-weight: 650; font-size: 16px; letter-spacing: .02em;
+}
+.f-head h2{ font-size: 19px; line-height: 1.25; font-weight: 700; letter-spacing: -0.01em; }
+.f-head h2:focus-visible{ outline-offset: 4px; }
+.f-sub{ margin-top: 2px; font-size: 14px; color: var(--ink-2); }
+.f-head .tag{ margin-top: 8px; }
+
+.facts{ display: grid; grid-template-columns: 1fr 1fr; margin-top: 18px; border-block: 1px solid var(--line); }
+.facts > div{ padding: 12px 0; }
+.facts > div + div{ padding-left: 14px; border-left: 1px solid var(--line); }
+.facts dt{ font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.facts dd{ display: flex; align-items: center; gap: 7px; margin-top: 3px; font-size: 14px; font-weight: 650; line-height: 1.3; }
+.facts dd .ico{ color: var(--ink-2); }
+
+.warn{
+  display: flex; gap: 10px; margin-top: 16px; padding: 12px 14px;
+  background: var(--warn-soft); border: 1px solid var(--warn-line); border-radius: 10px;
+}
+.warn .ico{ color: var(--warn); margin-top: 1px; }
+.warn strong{ display: block; font-size: 14px; font-weight: 700; color: var(--ink); }
+.warn p{ margin-top: 2px; font-size: 13.5px; color: var(--ink); }
+
+.rubric-head{ display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 22px; }
+.rubric-head h3{ font-size: 15px; font-weight: 650; }
+.rubric-head span{ font-size: 12px; color: var(--ink-2); }
+.rubric{ display: grid; gap: 16px; margin-top: 14px; }
+.crit-head{ display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.crit-name{ font-size: 14px; font-weight: 550; }
+.crit-w{ margin-left: 4px; font-size: 12px; font-weight: 400; color: var(--ink-2); }
+.crit-val{ font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.crit-val small{ font-size: 12px; font-weight: 400; color: var(--ink-2); }
+.bar{ position: relative; height: 8px; margin-top: 7px; border-radius: 4px; background: var(--track); overflow: hidden; }
+.bar i{
+  position: absolute; inset: 0; background: var(--accent);
+  clip-path: inset(0 var(--gap, 0%) 0 0 round 4px);
+  transition: clip-path 320ms var(--ease-out);
+}
+.crit-note{ margin-top: 5px; font-size: 12.5px; color: var(--ink-2); }
+
+.total{
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  margin-top: 20px; padding-top: 14px; border-top: 2px solid var(--ink);
+}
+.total-label{ font-size: 15px; font-weight: 650; }
+.total-val{ font-size: 30px; line-height: 1; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.total-val small{ font-size: 14px; font-weight: 400; letter-spacing: 0; color: var(--ink-2); }
+.total-note{ margin-top: 6px; font-size: 12.5px; color: var(--ink-2); }
+
+.f-actions{ margin-top: 22px; }
+.assign-note{ margin-top: 10px; font-size: 13px; color: var(--ink-2); }
+
+/* ------------------------------------------------------------------
+   Aviso inferior con "Deshacer"
+------------------------------------------------------------------ */
+.dock{
+  position: fixed; z-index: 40; left: 0; right: 0; bottom: max(16px, env(safe-area-inset-bottom));
+  width: min(600px, calc(100% - 32px)); margin-inline: auto;
+  display: flex; align-items: center; gap: 12px; padding: 10px 8px 10px 16px;
+  background: var(--ink); color: #fff; border-radius: 12px; box-shadow: var(--shadow-dock);
+  opacity: 0; transform: translateY(12px); visibility: hidden;
+  transition: opacity 140ms ease, transform 140ms ease, visibility 0s linear 140ms;
+}
+.dock[data-open="true"]{
+  opacity: 1; transform: none; visibility: visible;
+  transition: opacity 220ms var(--ease-out), transform 220ms var(--ease-out), visibility 0s;
+}
+.dock .ico{ color: oklch(0.82 0.12 155); }
+.dock-msg{ flex: 1; min-width: 0; font-size: 14px; line-height: 1.4; }
+.dock-btn{
+  min-height: 40px; padding: 0 14px; background: transparent; color: #fff;
+  border: 1px solid oklch(1 0 0 / .45); border-radius: var(--r-ctl); font-weight: 650;
+  transition: transform 150ms var(--ease-out), background-color 120ms ease;
+}
+.dock-btn:active{ transform: scale(0.97); }
+.dock-x{ width: 40px; height: 40px; display: grid; place-items: center; background: none; border: 0; border-radius: var(--r-ctl); color: oklch(0.88 0.01 265); }
+.dock :where(button):focus-visible{ outline-color: #fff; }
+@media (hover: hover) and (pointer: fine){
+  .dock-btn:hover{ background: oklch(1 0 0 / .14); }
+  .dock-x:hover{ background: oklch(1 0 0 / .14); color: #fff; }
+}
+
+/* ------------------------------------------------------------------
+   Preferencias del usuario
+------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce){
+  html{ scroll-behavior: auto; }
+  .btn:active, .chip:active, .dock-btn:active{ transform: none; }
+  .bar i{ transition: none; }
+  .dock, .dock[data-open="true"]{ transform: none; transition: opacity 160ms linear, visibility 0s linear 160ms; }
+  .dock[data-open="true"]{ transition: opacity 160ms linear, visibility 0s; }
+  .slot[data-fresh]{ animation: slot-flash-rm 900ms ease-out; }
+  .slot[data-fresh] .slot-main, .slot[data-fresh] .slot-act{ animation: fade-rm 200ms linear both; }
+  @keyframes fade-rm{ from{ opacity: 0; } to{ opacity: 1; } }
+  @keyframes slot-flash-rm{ from{ background-color: oklch(0.90 0.06 262); } }
+}
+@media (forced-colors: active){
+  .bar{ border: 1px solid CanvasText; }
+  .bar i{ background: Highlight; forced-color-adjust: none; }
+  .row[aria-current="true"]{ outline: 2px solid Highlight; outline-offset: -2px; }
+}
+</style>
+</head>
+<body>
+<!--
+THESIS: Una mesa de trabajo, no un tablero: los cuatro cupos del equipo van arriba como la plantilla de un partido; elegir es leer una rúbrica y ejecutar una sola acción reversible.
+OWN-WORLD: Papel frío, hojas de registro blancas, tinta casi negra; cobalto solo en la acción primaria y la selección; verde = cupo ocupado; ámbar = regla de 15 h. Tipografía del sistema, cifras tabulares, barras de rúbrica como renglones de un acta.
+STORY: La coordinadora ve el ranking, abre una ficha, lee los cuatro criterios, asigna, ve llenarse el cupo y puede deshacerlo.
+FIRST VIEWPORT: Título y banda de cupos arriba; debajo, lista ordenada por puntaje a la izquierda y ficha con rúbrica y botón de asignar a la derecha. A 400 px todo se apila.
+FORM: Operate, maestro-detalle. Se hereda el vocabulario estándar de tablas, chips y fichas.
+-->
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-analista" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20v-1a5.5 5.5 0 0 1 8-4.9"/><circle cx="17" cy="16" r="3"/><path d="m19.2 18.2 2.3 2.3"/></symbol>
+    <symbol id="i-arquitecto" viewBox="0 0 24 24"><path d="M21 12h-8M21 6H8M21 18h-8M3 6v4a2 2 0 0 0 2 2h3M3 10v6a2 2 0 0 0 2 2h3"/></symbol>
+    <symbol id="i-diseno" viewBox="0 0 24 24"><path d="m4 3 16 7-7 2.5L10.5 20z"/></symbol>
+    <symbol id="i-calidad" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.2 8 8 9 4.8-1 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="i-user-check" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/></symbol>
+    <symbol id="i-user-x" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 8 5 5M22 8l-5 5"/></symbol>
+    <symbol id="i-swap" viewBox="0 0 24 24"><path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7M12 19V5"/></symbol>
+  </defs>
+</svg>
+
+<a class="skip" href="#postulantes">Saltar a la lista de postulantes</a>
+
+<header class="top">
+  <div class="wrap top-title">
+    <h1>Mesa de selección de postulantes</h1>
+    <p class="sub">Contratación de talento TI · Sistema de gestión académica, UNEMI</p>
+  </div>
+  <div class="wrap cupos">
+    <div class="cupos-head">
+      <h2 id="cupos-h">Cupos del equipo</h2>
+      <p class="counter" id="counter"></p>
+    </div>
+    <ul class="slots" id="slots" aria-labelledby="cupos-h"></ul>
+  </div>
+</header>
+
+<main class="wrap layout" id="main">
+
+  <section class="panel list-panel" id="postulantes" aria-labelledby="lista-h">
+    <div class="panel-head">
+      <h2 id="lista-h">Postulantes</h2>
+      <p class="count" id="count" role="status"></p>
+    </div>
+
+    <div class="tools">
+      <div class="search">
+        <label for="q">Buscar por nombre</label>
+        <div class="field">
+          <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-search"/></svg>
+          <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Ej.: Camila">
+          <button type="button" class="clear" id="clear" aria-label="Borrar búsqueda" hidden>
+            <svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-x"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="chips" id="chips" role="group" aria-label="Filtrar por rol"></div>
+    </div>
+
+    <div class="colhead" id="colhead" aria-hidden="true">
+      <span>Postulante</span><span>Rol al que postula</span><span>Horas/sem</span><span>Puntaje</span>
+    </div>
+    <ul class="rows" id="rows"></ul>
+
+    <div class="empty" id="empty" hidden>
+      <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-search"/></svg>
+      <h3>Ningún postulante coincide</h3>
+      <p id="empty-text">Quita el filtro de rol o revisa cómo escribiste el nombre.</p>
+      <button type="button" class="btn secondary" id="reset">Limpiar filtros</button>
+    </div>
+
+    <p class="legend">
+      <svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg>
+      <span>Con menos de 15 h semanales, el postulante necesita visto bueno del coordinador. Lista ordenada por puntaje final.</span>
+    </p>
+  </section>
+
+  <section class="panel ficha" id="ficha" aria-labelledby="f-name">
+    <button type="button" class="back" id="back">
+      <svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-up"/></svg>
+      Volver a la lista
+    </button>
+
+    <div class="f-head">
+      <span class="avatar" id="f-avatar" aria-hidden="true"></span>
+      <div>
+        <h2 id="f-name" tabindex="-1"></h2>
+        <p class="f-sub" id="f-sub"></p>
+        <span class="tag" id="f-tag"></span>
+      </div>
+    </div>
+
+    <dl class="facts">
+      <div>
+        <dt>Rol al que postula</dt>
+        <dd><svg class="ico sm" aria-hidden="true" focusable="false"><use id="f-role-ico" href="#i-analista"/></svg><span id="f-role"></span></dd>
+      </div>
+      <div>
+        <dt>Horas semanales</dt>
+        <dd><svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-clock"/></svg><span id="f-hours" class="num"></span></dd>
+      </div>
+    </dl>
+
+    <div class="warn" id="f-warn" role="note" hidden>
+      <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-alert"/></svg>
+      <div>
+        <strong>Menos de 15 horas semanales</strong>
+        <p id="f-warn-text"></p>
+      </div>
+    </div>
+
+    <div class="rubric-head">
+      <h3>Rúbrica de evaluación</h3>
+      <span>Puntaje sobre 100</span>
+    </div>
+    <ul class="rubric" id="rubric"></ul>
+
+    <div class="total">
+      <span class="total-label">Puntaje final</span>
+      <span class="total-val"><span id="f-total">0</span> <small>/ 100</small></span>
+    </div>
+    <p class="total-note">Promedio ponderado de los cuatro criterios.</p>
+
+    <div class="f-actions">
+      <button type="button" class="btn primary block" id="assign" aria-describedby="assign-note">
+        <svg class="ico" aria-hidden="true" focusable="false"><use id="assign-ico" href="#i-user-check"/></svg>
+        <span id="assign-label"></span>
+      </button>
+      <p class="assign-note" id="assign-note"></p>
+    </div>
+  </section>
+</main>
+
+<div class="dock" id="dock" data-open="false">
+  <svg class="ico" aria-hidden="true" focusable="false"><use href="#i-check"/></svg>
+  <p class="dock-msg" id="dock-msg"></p>
+  <button type="button" class="dock-btn" id="dock-undo" aria-keyshortcuts="Control+Z" title="Deshacer (Ctrl+Z)">Deshacer</button>
+  <button type="button" class="dock-x" id="dock-x" aria-label="Cerrar aviso">
+    <svg class="ico sm" aria-hidden="true" focusable="false"><use href="#i-x"/></svg>
+  </button>
+</div>
+<div class="sr" id="announcer" aria-live="polite" aria-atomic="true"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ---------------- Datos de ejemplo (inventados) ---------------- */
+  const MIN_H = 15;          // por debajo: visto bueno del coordinador
+  const REF_H = 25;          // 25 h semanales = 100 puntos de disponibilidad
+  const CRITERIA = [
+    { k: 'dominio',    name: 'Dominio técnico',        w: 0.35 },
+    { k: 'equipo',     name: 'Trabajo en equipo',      w: 0.25 },
+    { k: 'disp',       name: 'Disponibilidad horaria', w: 0.20 },
+    { k: 'portafolio', name: 'Portafolio',             w: 0.20 },
+  ];
+  const ROLES = [
+    { key: 'analista',   name: 'Analista de usuario',      short: 'Analista',   icon: 'i-analista'   },
+    { key: 'arquitecto', name: 'Arquitecto de requisitos', short: 'Arquitecto', icon: 'i-arquitecto' },
+    { key: 'diseno',     name: 'Diseñador de interacción', short: 'Diseñador',  icon: 'i-diseno'     },
+    { key: 'calidad',    name: 'Evaluador de calidad',     short: 'Evaluador',  icon: 'i-calidad'    },
+  ];
+  const ROLE = Object.fromEntries(ROLES.map(r => [r.key, r]));
+
+  const P = [
+    { id: 'camila',  name: 'Camila Zambrano Villón',  carrera: 'Ingeniería en Software',        nivel: 8, role: 'analista',   horas: 20, dominio: 86, equipo: 93, portafolio: 82 },
+    { id: 'joaquin', name: 'Joaquín Macías Intriago', carrera: 'Ingeniería en Software',        nivel: 6, role: 'arquitecto', horas: 12, dominio: 91, equipo: 74, portafolio: 88 },
+    { id: 'daniela', name: 'Daniela Cedeño Párraga',  carrera: 'Tecnologías de la Información', nivel: 7, role: 'diseno',     horas: 18, dominio: 84, equipo: 88, portafolio: 95 },
+    { id: 'kevin',   name: 'Kevin Alvarado Quinde',   carrera: 'Ingeniería en Software',        nivel: 9, role: 'calidad',    horas: 25, dominio: 79, equipo: 81, portafolio: 70 },
+    { id: 'mishell', name: 'Mishell Reyes Torres',    carrera: 'Tecnologías de la Información', nivel: 5, role: 'analista',   horas: 15, dominio: 72, equipo: 90, portafolio: 66 },
+    { id: 'andres',  name: 'Andrés Bravo Moreira',    carrera: 'Ingeniería en Software',        nivel: 8, role: 'diseno',     horas: 22, dominio: 80, equipo: 76, portafolio: 78 },
+  ];
+  P.forEach(p => {
+    p.disp = Math.min(100, Math.round(p.horas / REF_H * 100));
+    p.total = Math.round(CRITERIA.reduce((s, c) => s + p[c.k] * c.w, 0));
+    const parts = p.name.split(' ');
+    p.short = parts[0] + ' ' + parts[1];
+    p.initials = (parts[0][0] + parts[1][0]).toUpperCase();
+  });
+  P.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'es'));
+  const BY = Object.fromEntries(P.map(p => [p.id, p]));
+
+  /* ---------------- Estado ---------------- */
+  const state = {
+    role: 'todos',
+    q: '',
+    sel: P[0].id,
+    slots: { analista: null, arquitecto: null, diseno: null, calidad: 'kevin' },
+    history: [],
+  };
+
+  /* ---------------- Utilidades ---------------- */
+  const $ = id => document.getElementById(id);
+  const el = { slots: $('slots'), counter: $('counter'), rows: $('rows'), count: $('count'), chips: $('chips'),
+    q: $('q'), clear: $('clear'), empty: $('empty'), emptyText: $('empty-text'), reset: $('reset'),
+    ficha: $('ficha'), fName: $('f-name'), assign: $('assign'), dock: $('dock'), dockMsg: $('dock-msg'),
+    dockUndo: $('dock-undo'), announcer: $('announcer') };
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const norm = s => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+  const icon = (id, cls = '') => `<svg class="ico ${cls}" aria-hidden="true" focusable="false"><use href="#${id}"/></svg>`;
+  const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const narrow = () => matchMedia('(max-width: 979px)').matches;
+  const plural = (n, s, p) => `${n} ${n === 1 ? s : p}`;
+  const taken = () => Object.values(state.slots).filter(Boolean).length;
+  const visible = () => {
+    const q = norm(state.q);
+    return P.filter(p => (state.role === 'todos' || p.role === state.role) && (!q || norm(p.name).includes(q)));
+  };
+  let announceTimer;
+  function announce(msg) {
+    clearTimeout(announceTimer);
+    el.announcer.textContent = '';
+    announceTimer = setTimeout(() => { el.announcer.textContent = msg; }, 60);
+  }
+
+  /* ---------------- Cupos ---------------- */
+  function renderSlots(freshKey) {
+    el.slots.innerHTML = ROLES.map(r => {
+      const occ = state.slots[r.key] ? BY[state.slots[r.key]] : null;
+      const n = P.filter(p => p.role === r.key).length;
+      const pending = occ && occ.horas < MIN_H;
+      const state_ = occ
+        ? `<span class="dot" aria-hidden="true"></span><span><span class="st">Ocupado</span> por <button type="button" class="linkbtn" data-act="open" data-id="${occ.id}">${esc(occ.short)}</button></span>`
+        : `<span class="dot hollow" aria-hidden="true"></span><span><span class="st">Libre</span> · ${plural(n, 'postulante', 'postulantes')}</span>`;
+      const act = occ
+        ? `<button type="button" class="btn sm secondary" data-act="release" data-key="${r.key}" aria-label="Liberar cupo de ${r.name}">Liberar</button>`
+        : `<button type="button" class="btn sm secondary" data-act="filter" data-key="${r.key}" aria-label="Ver postulantes a ${r.name}">Ver</button>`;
+      return `<li class="slot" data-key="${r.key}" data-state="${occ ? 'taken' : 'free'}">
+        ${icon(r.icon, 'slot-ico')}
+        <div class="slot-main">
+          <h3 class="slot-role">${r.name}</h3>
+          <div class="slot-state">${state_}</div>
+          ${pending ? `<p class="slot-pend">${icon('i-alert', 'sm')}Visto bueno pendiente</p>` : ''}
+        </div>
+        <div class="slot-act">${act}</div>
+      </li>`;
+    }).join('');
+
+    const n = taken();
+    el.counter.innerHTML = `<b>${n} de 4</b> cupos ocupados${n === 4 ? ' · Equipo completo' : ''}`;
+
+    if (freshKey) {
+      const li = el.slots.querySelector(`[data-key="${freshKey}"]`);
+      if (li) { li.setAttribute('data-fresh', ''); setTimeout(() => li.removeAttribute('data-fresh'), 1000); }
+    }
+  }
+
+  /* ---------------- Filtros ---------------- */
+  function renderChips() {
+    const defs = [{ key: 'todos', short: 'Todos', name: 'Todos los roles', n: P.length }]
+      .concat(ROLES.map(r => ({ key: r.key, short: r.short, name: r.name, n: P.filter(p => p.role === r.key).length })));
+    el.chips.innerHTML = defs.map(d =>
+      `<button type="button" class="chip" data-role="${d.key}" aria-pressed="${state.role === d.key}" aria-label="${d.name}, ${plural(d.n, 'postulante', 'postulantes')}" title="${d.name}">${d.short} <span class="n" aria-hidden="true">${d.n}</span></button>`
+    ).join('');
+  }
+  function syncChips() {
+    el.chips.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.role === state.role)));
+  }
+
+  /* ---------------- Lista ---------------- */
+  function renderList() {
+    const list = visible();
+    el.rows.innerHTML = list.map(p => {
+      const low = p.horas < MIN_H;
+      const assigned = state.slots[p.role] === p.id;
+      return `<li><button type="button" class="row" data-id="${p.id}" aria-current="${p.id === state.sel}">
+        <span class="r-who">
+          <span class="r-name">${esc(p.name)}${assigned ? `<span class="tag ok">${icon('i-check', 'sm')}Asignado</span>` : ''}</span>
+          <span class="r-sub">${esc(p.carrera)} · ${p.nivel}.º nivel</span>
+        </span>
+        <span class="r-role">${icon(ROLE[p.role].icon, 'sm')}<span>${ROLE[p.role].name}</span></span>
+        <span class="r-hours num${low ? ' low' : ''}">${low ? icon('i-alert', 'sm') : ''}${p.horas} h/sem${low ? '<span class="sr"> (menos de 15 h, requiere visto bueno)</span>' : ''}</span>
+        <span class="r-score">${p.total}<span class="sr"> puntos de 100</span></span>
+      </button></li>`;
+    }).join('');
+
+    el.empty.hidden = list.length > 0;
+    el.rows.hidden = list.length === 0;
+    $('colhead').hidden = list.length === 0;
+    el.clear.hidden = !state.q;
+    el.count.textContent = list.length === P.length ? `${P.length} postulantes` : `${list.length} de ${P.length} postulantes`;
+    if (!list.length) {
+      el.emptyText.textContent = state.q
+        ? `No hay nadie llamado «${state.q.trim()}»${state.role !== 'todos' ? ' en ' + ROLE[state.role].name : ''}. Revisa la escritura o quita el filtro.`
+        : `Nadie postula a ${ROLE[state.role].name} todavía.`;
+    }
+  }
+
+  /* ---------------- Ficha ---------------- */
+  const rubric = $('rubric');
+  rubric.innerHTML = CRITERIA.map(c => `<li class="crit" data-k="${c.k}">
+      <div class="crit-head">
+        <span class="crit-name">${c.name}<span class="crit-w">· peso ${Math.round(c.w * 100)} %</span></span>
+        <span class="crit-val"><span data-v></span><small> / 100</small></span>
+      </div>
+      <div class="bar" role="meter" aria-label="${c.name}" aria-valuemin="0" aria-valuemax="100"><i></i></div>
+      ${c.k === 'disp' ? '<p class="crit-note" data-note></p>' : ''}
+    </li>`).join('');
+
+  function renderFicha() {
+    const p = BY[state.sel];
+    const r = ROLE[p.role];
+    const occId = state.slots[p.role];
+    const occ = occId ? BY[occId] : null;
+    const mine = occId === p.id;
+    const low = p.horas < MIN_H;
+
+    $('f-avatar').textContent = p.initials;
+    $('f-name').innerHTML = `<span class="sr">Ficha de </span>${esc(p.name)}`;
+    $('f-sub').textContent = `${p.carrera} · ${p.nivel}.º nivel`;
+    $('f-role').textContent = r.name;
+    $('f-role-ico').setAttribute('href', '#' + r.icon);
+    $('f-hours').textContent = `${p.horas} h por semana`;
+
+    const tag = $('f-tag');
+    tag.className = 'tag ' + (mine ? 'ok' : 'idle');
+    tag.innerHTML = mine ? `${icon('i-check', 'sm')}Asignado a ${r.name}` : 'Sin asignar';
+
+    $('f-warn').hidden = !low;
+    if (low) $('f-warn-text').textContent =
+      `Declara ${p.horas} h por semana, por debajo del mínimo de ${MIN_H} h. Necesita visto bueno del coordinador antes de confirmar su lugar en el equipo.`;
+
+    CRITERIA.forEach(c => {
+      const v = p[c.k];
+      const li = rubric.querySelector(`[data-k="${c.k}"]`);
+      li.querySelector('[data-v]').textContent = v;
+      const bar = li.querySelector('.bar');
+      bar.setAttribute('aria-valuenow', v);
+      bar.setAttribute('aria-valuetext', `${v} de 100`);
+      bar.firstElementChild.style.setProperty('--gap', (100 - v) + '%');
+    });
+    rubric.querySelector('[data-note]').textContent = `${p.horas} h declaradas · referencia ${REF_H} h = 100 puntos`;
+    $('f-total').textContent = p.total;
+
+    const label = $('assign-label'), note = $('assign-note'), ico = $('assign-ico');
+    el.assign.classList.remove('primary', 'secondary');
+    if (mine) {
+      el.assign.classList.add('secondary');
+      label.textContent = `Liberar cupo de ${r.name}`;
+      ico.setAttribute('href', '#i-user-x');
+      note.textContent = 'Al liberarlo, vuelve a la lista y el cupo queda libre.';
+    } else if (occ) {
+      el.assign.classList.add('primary');
+      label.textContent = `Reemplazar a ${occ.short}`;
+      ico.setAttribute('href', '#i-swap');
+      note.textContent = `El cupo de ${r.name} lo ocupa ${occ.short}. Si lo reemplazas, vuelve a la lista; puedes deshacerlo.`;
+    } else {
+      el.assign.classList.add('primary');
+      label.textContent = `Asignar a ${r.name}`;
+      ico.setAttribute('href', '#i-user-check');
+      note.textContent = low ? 'Quedará marcado con visto bueno pendiente. Puedes deshacerlo en cualquier momento.' : 'Puedes deshacerlo en cualquier momento.';
+    }
+  }
+
+  function select(id, opts = {}) {
+    state.sel = id;
+    el.rows.querySelectorAll('.row').forEach(b => b.setAttribute('aria-current', String(b.dataset.id === id)));
+    renderFicha();
+    const p = BY[id];
+    announce(`Ficha de ${p.name}. Puntaje final ${p.total} de 100. ${p.horas} horas semanales${p.horas < MIN_H ? ', necesita visto bueno del coordinador' : ''}.`);
+    if (opts.reveal && narrow()) {
+      el.ficha.scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'start' });
+      el.fName.focus({ preventScroll: true });
+    }
+  }
+
+  /* ---------------- Aviso inferior ---------------- */
+  let dockTimer;
+  function showDock(msg, { undo = true, ms = 9000 } = {}) {
+    el.dockMsg.textContent = msg;
+    el.dockUndo.hidden = !undo;
+    el.dock.setAttribute('data-open', 'true');
+    clearTimeout(dockTimer);
+    if (ms) dockTimer = setTimeout(hideDock, ms);
+  }
+  function hideDock() { clearTimeout(dockTimer); el.dock.setAttribute('data-open', 'false'); }
+  el.dock.addEventListener('pointerenter', () => clearTimeout(dockTimer));
+  el.dock.addEventListener('focusin', () => clearTimeout(dockTimer));
+  el.dock.addEventListener('pointerleave', () => { if (el.dock.dataset.open === 'true') dockTimer = setTimeout(hideDock, 4000); });
+  el.dock.addEventListener('focusout', e => { if (!el.dock.contains(e.relatedTarget) && el.dock.dataset.open === 'true') dockTimer = setTimeout(hideDock, 4000); });
+
+  /* ---------------- Acciones (todas reversibles) ---------------- */
+  function refresh(freshKey) { renderSlots(freshKey); renderList(); renderFicha(); }
+
+  function commit(role, next) {
+    const prev = state.slots[role];
+    if (prev === next) return;
+    state.history.push({ role, prev, next });
+    state.slots[role] = next;
+    refresh(role);
+
+    const r = ROLE[role];
+    let msg, say;
+    if (next) {
+      const p = BY[next];
+      msg = prev
+        ? `${p.short} ocupa ahora el cupo de ${r.name}; ${BY[prev].short} vuelve a la lista.`
+        : `Cupo de ${r.name} ocupado por ${p.name}.`;
+      if (p.horas < MIN_H) msg += ' Falta el visto bueno del coordinador.';
+    } else {
+      msg = `Cupo de ${r.name} liberado.`;
+    }
+    say = msg + ` Tienes ${taken()} de 4 cupos ocupados.`;
+    showDock(msg);
+    announce(say);
+  }
+
+  function undo() {
+    const c = state.history.pop();
+    if (!c) return;
+    state.slots[c.role] = c.prev;
+    refresh(c.role);
+    showDock(`Cambio deshecho en ${ROLE[c.role].name}.`, { undo: false, ms: 3500 });
+    announce(`Cambio deshecho. Cupo de ${ROLE[c.role].name} ${c.prev ? 'ocupado por ' + BY[c.prev].name : 'libre'}.`);
+  }
+
+  el.assign.addEventListener('click', () => {
+    const p = BY[state.sel];
+    commit(p.role, state.slots[p.role] === p.id ? null : p.id);
+  });
+  el.dockUndo.addEventListener('click', () => {
+    undo();
+    // el botón se oculta: devolver el foco a algo que siga existiendo
+    el.assign.focus({ preventScroll: true });
+  });
+  $('dock-x').addEventListener('click', () => { hideDock(); el.assign.focus({ preventScroll: true }); });
+
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && !/^(input|textarea)$/i.test(document.activeElement.tagName)) {
+      if (state.history.length) { e.preventDefault(); undo(); }
+    }
+    if (e.key === 'Escape' && el.dock.contains(document.activeElement)) { hideDock(); el.assign.focus({ preventScroll: true }); }
+  });
+
+  /* ---------------- Cupos: eventos ---------------- */
+  el.slots.addEventListener('click', e => {
+    const b = e.target.closest('button[data-act]');
+    if (!b) return;
+    const act = b.dataset.act;
+    if (act === 'release') {
+      const key = b.dataset.key;
+      commit(key, null);
+      el.slots.querySelector(`[data-key="${key}"] button`)?.focus({ preventScroll: true });
+    } else if (act === 'filter') {
+      setRole(b.dataset.key);
+      const first = visible()[0];
+      if (first) select(first.id);
+      if (narrow()) $('postulantes').scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'start' });
+      el.rows.querySelector('.row')?.focus({ preventScroll: true });
+    } else if (act === 'open') {
+      const p = BY[b.dataset.id];
+      if (state.role !== 'todos' && state.role !== p.role) setRole('todos', true);
+      if (state.q && !norm(p.name).includes(norm(state.q))) { state.q = ''; el.q.value = ''; renderList(); }
+      select(p.id, { reveal: true });
+    }
+  });
+
+  /* ---------------- Filtros y búsqueda: eventos ---------------- */
+  function setRole(key, silent) {
+    state.role = key;
+    syncChips();
+    renderList();
+    if (!silent) announce(`${el.count.textContent}.`);
+  }
+  el.chips.addEventListener('click', e => {
+    const c = e.target.closest('.chip');
+    if (c) setRole(c.dataset.role);
+  });
+  el.q.addEventListener('input', () => { state.q = el.q.value; renderList(); });
+  el.q.addEventListener('keydown', e => { if (e.key === 'Escape' && el.q.value) { e.preventDefault(); clearQuery(); } });
+  function clearQuery() { state.q = ''; el.q.value = ''; renderList(); el.q.focus(); }
+  el.clear.addEventListener('click', clearQuery);
+  el.reset.addEventListener('click', () => { state.q = ''; el.q.value = ''; setRole('todos'); el.q.focus(); });
+
+  /* ---------------- Lista: eventos ---------------- */
+  el.rows.addEventListener('click', e => {
+    const b = e.target.closest('.row');
+    if (b) select(b.dataset.id, { reveal: true });
+  });
+  el.rows.addEventListener('keydown', e => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    const rows = [...el.rows.querySelectorAll('.row')];
+    const i = rows.indexOf(document.activeElement);
+    if (i < 0) return;
+    e.preventDefault();
+    rows[Math.max(0, Math.min(rows.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)))].focus();
+  });
+  $('back').addEventListener('click', () => {
+    const row = el.rows.querySelector(`.row[data-id="${state.sel}"]`) || el.rows.querySelector('.row');
+    (row || el.q).focus({ preventScroll: true });
+    (row || $('postulantes')).scrollIntoView({ behavior: reduced() ? 'auto' : 'smooth', block: 'center' });
+  });
+
+  /* ---------------- Arranque ---------------- */
+  renderChips();
+  renderSlots();
+  renderList();
+  renderFicha();
+})();
+</script>
+</body>
+</html>
